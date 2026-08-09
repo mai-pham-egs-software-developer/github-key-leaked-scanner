@@ -2,6 +2,7 @@ package com.leakscanner.scan;
 
 import com.leakscanner.archive.GhArchiveClient;
 import com.leakscanner.config.ScannerProperties;
+import com.leakscanner.crypto.CryptoService;
 import com.leakscanner.detect.KeyMatch;
 import com.leakscanner.detect.PrivateKeyDetector;
 import com.leakscanner.patch.PatchFetcher;
@@ -34,16 +35,19 @@ public class ScanService {
   private final PrivateKeyDetector detector;
   private final ScanResultStore store;
   private final ScannerProperties props;
+  private final CryptoService cryptoService;
 
   public ScanService(
       GhArchiveClient archiveClient,
       PatchFetcher patchFetcher,
       PrivateKeyDetector detector,
       ScanResultStore store,
+      CryptoService cryptoService,
       ScannerProperties props) {
     this.archiveClient = archiveClient;
     this.patchFetcher = patchFetcher;
     this.detector = detector;
+    this.cryptoService = cryptoService;
     this.store = store;
     this.props = props;
   }
@@ -75,19 +79,22 @@ public class ScanService {
                   .thenAccept(
                       patchText -> {
                         patchesFetched.incrementAndGet();
-                        for (KeyMatch f : detector.scanPatch(patchText)) {
-                          matches.add(
-                              new StoredMatch(
-                                  hourKey,
-                                  evt.repoName(),
-                                  evt.head(),
-                                  f.filePath(),
-                                  f.confidence(),
-                                  f.hasPrefix(),
-                                  f.redacted(),
-                                  f.context(),
-                                  evt.createdAt() != null ? evt.createdAt() : Instant.now().toString()));
-                        }
+                        detector.scanPatch(
+                            patchText,
+                            (f, rawKey) -> {
+                              matches.add(
+                                  new StoredMatch(
+                                      hourKey,
+                                      evt.repoName(),
+                                      evt.head(),
+                                      f.filePath(),
+                                      f.confidence(),
+                                      f.hasPrefix(),
+                                      f.redacted(),
+                                      f.context(),
+                                      evt.createdAt() != null ? evt.createdAt() : Instant.now().toString()));
+                              cryptoService.process(rawKey, f);
+                            });
                       })
                   .exceptionally(
                       ex -> {

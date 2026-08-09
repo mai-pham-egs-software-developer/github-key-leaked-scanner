@@ -1,11 +1,12 @@
 package com.leakscanner.crypto.chain;
 
+import com.leakscanner.crypto.Chain;
 import com.leakscanner.crypto.ChainEco;
 import com.leakscanner.crypto.dto.BalanceResultDto;
 
 public interface IChain {
 
-    ChainEco chain();
+    Chain chain();
 
     String resolveAddress(String pk);
 

@@ -57,6 +57,7 @@ class PrivateKeyDetectorTest {
   void redactedValueKeepsOnlyFirst6AndLast4Chars() {
     List<KeyMatch> findings = detector.scanLine("wallet=" + HEX_A, null);
 
+    assertThat(findings.get(0).redacted()).isEqualTo("012345...cdef");
   }
 
   @Test
@@ -65,7 +66,9 @@ class PrivateKeyDetectorTest {
     List<KeyMatch> findings = detector.scanLine(line, null);
 
     String context = findings.get(0).context();
-
+    assertThat(context).doesNotContain(HEX_A);
+    assertThat(context).contains("0x012345...cdef");
+    assertThat(context).contains("PRIVATE_KEY=");
   }
 
   @Test
@@ -135,7 +138,7 @@ class PrivateKeyDetectorTest {
     assertThat(findings).hasSize(1);
     assertThat(findings.get(0).confidence()).isEqualTo(KeyMatch.Confidence.HIGH);
     assertThat(findings.get(0).redacted())
-        .isEqualTo(HEX_A);
+        .isEqualTo("012345...cdef");
   }
 
   @Test
@@ -180,6 +183,6 @@ class PrivateKeyDetectorTest {
         assertThat(findings).hasSize(1);
         assertThat(findings.get(0).confidence()).isEqualTo(KeyMatch.Confidence.HIGH);
         assertThat(findings.get(0).redacted())
-                .isEqualTo(HEX_A);
+                .isEqualTo("012345...cdef");
     }
 }

@@ -24,28 +24,8 @@ public class Eth extends AbstractChainResolver {
     }
 
     @Override
-    public ChainEco chain() {
-        return ChainEco.ETH;
+    public Chain chain() {
+        return Chain.ETH_MAINNET;
     }
 
-    @Override
-    public BalanceResultDto retrieve(String pk) {
-        String address = resolveAddress(pk);
-
-        BigInteger balanceWei;
-        try {
-            balanceWei = web3j(Chain.ETH_MAINNET).ethGetBalance(address, DefaultBlockParameterName.LATEST)
-                    .send()
-                    .getBalance();
-        } catch (IOException e) {
-            invalidateConnection(Chain.ETH_MAINNET);
-            throw new RuntimeException("Failed to fetch ETH balance for " + address, e);
-        }
-
-        BalanceResultDto result = new BalanceResultDto();
-        result.setChain(ChainEco.ETH);
-        result.setAddress(address);
-        result.setBalance(Convert.fromWei(new BigDecimal(balanceWei), Convert.Unit.ETHER));
-        return result;
-    }
 }

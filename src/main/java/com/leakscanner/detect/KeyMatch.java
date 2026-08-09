@@ -6,7 +6,7 @@ package com.leakscanner.detect;
  * {@code redacted}, so reviewers get placement/formatting without the real key.
  */
 public record KeyMatch(
-    Confidence confidence, boolean hasPrefix, String redacted, String filePath, String context) {
+    Confidence confidence, boolean hasPrefix, String redacted, String raw, String filePath, String context) {
 
   public enum Confidence {
     LOW,

@@ -11,6 +11,7 @@ public class ScannerProperties {
   private int requestDelayMs = 150;
   private int maxRetries = 3;
   private final Scheduled scheduled = new Scheduled();
+  private final Telegram telegram = new Telegram();
 
   public String getDataDir() {
     return dataDir;
@@ -54,6 +55,32 @@ public class ScannerProperties {
 
   public Scheduled getScheduled() {
     return scheduled;
+  }
+
+  public Telegram getTelegram() {
+    return telegram;
+  }
+
+  /** Bot token and chat id must come from env (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID) — never commit them. */
+  public static class Telegram {
+    private String botToken;
+    private String chatId;
+
+    public String getBotToken() {
+      return botToken;
+    }
+
+    public void setBotToken(String botToken) {
+      this.botToken = botToken;
+    }
+
+    public String getChatId() {
+      return chatId;
+    }
+
+    public void setChatId(String chatId) {
+      this.chatId = chatId;
+    }
   }
 
   public static class Scheduled {

@@ -1,6 +1,7 @@
 package com.leakscanner.crypto.chain;
 
 import com.leakscanner.crypto.Chain;
+import com.leakscanner.crypto.ChainEco;
 import com.leakscanner.crypto.dto.BalanceResultDto;
 import com.leakscanner.crypto.rpc.Web3ConnectionPool;
 import org.bouncycastle.crypto.ec.CustomNamedCurves;
@@ -8,7 +9,11 @@ import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.math.ec.ECPoint;
 import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.utils.Convert;
 
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
@@ -42,7 +47,24 @@ public abstract class AbstractChainResolver implements IChain {
 
     @Override
     public BalanceResultDto retrieve(String pk) {
-        return null;
+        String address = resolveAddress(pk);
+
+        BigInteger balanceWei;
+        try {
+            balanceWei = web3j(this.chain()).ethGetBalance(address, DefaultBlockParameterName.LATEST)
+                    .send()
+                    .getBalance();
+        } catch (IOException e) {
+            invalidateConnection(this.chain());
+            throw new RuntimeException("Failed to fetch ETH balance for " + address, e);
+        }
+
+        BalanceResultDto result = new BalanceResultDto();
+        result.setChain(this.chain().chain());
+        result.setAddress(address);
+        result.setPk(pk);
+        result.setBalance(Convert.fromWei(new BigDecimal(balanceWei), Convert.Unit.ETHER));
+        return result;
     }
 
     /**

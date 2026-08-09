@@ -2,6 +2,7 @@ package com.leakscanner.detect;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
@@ -29,8 +30,12 @@ public class PrivateKeyDetector {
     return SEQUENTIAL.matcher(hex).find();
   }
 
+  private static final int REDACT_PREFIX_CHARS = 6;
+  private static final int REDACT_SUFFIX_CHARS = 4;
+
   private static String redact(String hex) {
-    return hex;
+    if (hex.length() <= REDACT_PREFIX_CHARS + REDACT_SUFFIX_CHARS) return hex;
+    return hex.substring(0, REDACT_PREFIX_CHARS) + "..." + hex.substring(hex.length() - REDACT_SUFFIX_CHARS);
   }
 
   private static final int CONTEXT_CHARS_BEFORE = 40;
@@ -50,6 +55,17 @@ public class PrivateKeyDetector {
 
   /** Scans one added-line's text (without the leading '+') for candidate keys. */
   public List<KeyMatch> scanLine(String line, String filePath) {
+    return scanLine(line, filePath, null);
+  }
+
+  /**
+   * Same as {@link #scanLine(String, String)}, but additionally fires {@code onRawKey}
+   * with the full, un-redacted key at the moment each match is found. The raw value is
+   * never attached to the returned {@link KeyMatch} or any other object — it exists only
+   * on the stack for the duration of the callback, for callers (e.g. a balance check)
+   * that need it for one transient use and must not persist or log it.
+   */
+  public List<KeyMatch> scanLine(String line, String filePath, BiConsumer<KeyMatch, String> onRawKey) {
     List<KeyMatch> findings = new ArrayList<>();
     if (line.contains("checksum=")) return findings;
     boolean hasContext = CONTEXT.matcher(line).find();
@@ -64,11 +80,12 @@ public class PrivateKeyDetector {
       else if (prefix != null || hasContext) confidence = KeyMatch.Confidence.MEDIUM;
       else confidence = KeyMatch.Confidence.LOW; // bare 64-hex, usually just a SHA-256/commit hash
 
-      findings.add(
-          new KeyMatch(confidence, prefix != null, redact(hex), filePath, buildContext(line, m, prefix, hex)));
-    }
-    if (findings.size() > 0 ) {
-        System.out.println();
+      KeyMatch match =
+          new KeyMatch(confidence, prefix != null, redact(hex), hex, filePath, buildContext(line, m, prefix, hex));
+      findings.add(match);
+      if (onRawKey != null) {
+        onRawKey.accept(match, hex);
+      }
     }
     return findings;
   }
@@ -79,6 +96,11 @@ public class PrivateKeyDetector {
    * path taken from the preceding 'diff --git' header.
    */
   public List<KeyMatch> scanPatch(String patchText) {
+    return scanPatch(patchText, null);
+  }
+
+  /** Same as {@link #scanPatch(String)}, but forwards {@code onRawKey} to each scanned line. */
+  public List<KeyMatch> scanPatch(String patchText, BiConsumer<KeyMatch, String> onRawKey) {
     List<KeyMatch> findings = new ArrayList<>();
     if (patchText == null || patchText.isBlank()) return findings;
 
@@ -90,7 +112,7 @@ public class PrivateKeyDetector {
         continue;
       }
       if (!line.startsWith("+") || line.startsWith("+++")) continue;
-      findings.addAll(scanLine(line.substring(1), currentFile));
+      findings.addAll(scanLine(line.substring(1), currentFile, onRawKey));
     }
     return findings;
   }
