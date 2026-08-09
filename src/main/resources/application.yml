@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+logging:
+  level:
+    com.leakscanner.patch: DEBUG
+
+scanner:
+  data-dir: ./data
+  sample-rate: 0.02
+  concurrency: 6
+  request-delay-ms: 150
+  max-retries: 3
+  scheduled:
+    enabled: false
+    # top of every hour, 5 minutes in, scans the hour that just completed (UTC)
+    cron: "0 42 * * * *"
