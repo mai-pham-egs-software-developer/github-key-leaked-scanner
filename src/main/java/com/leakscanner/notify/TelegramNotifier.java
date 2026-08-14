@@ -39,12 +39,15 @@ public class TelegramNotifier {
             return;
         }
 
-        String text = "🚨 Funded leaked key found\n"
-                + "chain: " + result.getChain() + "\n"
-                + "address: " + result.getAddress() + "\n"
-                + "balance: " + result.getBalance() + "\n"
-                + "file: " + keyMatch.filePath();
-
+        String text =
+             """ 
+                🚨 Funded leaked key found
+                chain: %s
+                address: %s
+                balance: %s
+                file: %s
+              """.formatted(result.getChain(), result.getAddress(),
+                     result.getBalance(), keyMatch.filePath());
         send(text);
     }
 
