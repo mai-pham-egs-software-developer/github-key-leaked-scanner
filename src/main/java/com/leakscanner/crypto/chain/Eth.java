@@ -1,5 +1,6 @@
 package com.leakscanner.crypto.chain;
 
+import com.leakscanner.config.ScannerProperties;
 import com.leakscanner.crypto.Chain;
 import com.leakscanner.crypto.ChainEco;
 import com.leakscanner.crypto.dto.BalanceResultDto;
@@ -19,8 +20,8 @@ import java.math.BigInteger;
 @Component
 public class Eth extends AbstractChainResolver {
 
-    public Eth(Web3ConnectionPool connectionPool) {
-        super(connectionPool);
+    public Eth(Web3ConnectionPool connectionPool, ScannerProperties props) {
+        super(connectionPool, props);
     }
 
     @Override

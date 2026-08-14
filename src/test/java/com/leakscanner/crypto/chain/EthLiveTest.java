@@ -2,6 +2,7 @@ package com.leakscanner.crypto.chain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.leakscanner.config.ScannerProperties;
 import com.leakscanner.crypto.ChainEco;
 import com.leakscanner.crypto.dto.BalanceResultDto;
 import com.leakscanner.crypto.rpc.RpcManagement;
@@ -23,7 +24,7 @@ class EthLiveTest {
       "0000000000000000000000000000000000000000000000000000000000000001";
   private static final String PK_ONE_ADDRESS = "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf";
   private static final String PK_RABBY_TEST = "0x5c331061b7575d679f2a798c7ef2274ed56be56e8e1b92bbdfbb473ead0d8382";
-  private final Eth eth = new Eth(new Web3ConnectionPool(new RpcManagement()));
+  private final Eth eth = new Eth(new Web3ConnectionPool(new RpcManagement()), new ScannerProperties());
 
   @Test
   void retrieveResolvesAddressAndFetchesARealBalanceFromALiveRpcEndpoint() {

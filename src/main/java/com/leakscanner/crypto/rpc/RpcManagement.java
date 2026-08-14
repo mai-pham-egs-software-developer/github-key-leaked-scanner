@@ -3,6 +3,8 @@ package com.leakscanner.crypto.rpc;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leakscanner.crypto.Chain;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
  */
 @Component
 public class RpcManagement {
+
+    private static final Logger log = LoggerFactory.getLogger(RpcManagement.class);
 
     private static final String CHAINLIST_URL = "https://chainlist.org/rpcs.json";
     private static final Duration CHAINLIST_REFRESH_INTERVAL = Duration.ofHours(6);
@@ -72,6 +76,8 @@ public class RpcManagement {
             reportFailure(url);
         }
 
+        log.warn("No healthy RPC endpoint found for {} (probed {} of {} known candidates)",
+                chain, probeable.size(), candidates.size());
         throw new IllegalStateException("No healthy RPC endpoint found for " + chain
                 + " (probed " + probeable.size() + " of " + candidates.size() + " known candidates)");
     }
@@ -150,10 +156,15 @@ public class RpcManagement {
                             "{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}"))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.statusCode() == 200
+            boolean healthy = response.statusCode() == 200
                     && response.body().contains("\"result\":\"0x")
                     && !response.body().contains("\"error\"");
+            if (!healthy) {
+                log.debug("RPC health check failed for {}: HTTP {} body={}", url, response.statusCode(), response.body());
+            }
+            return healthy;
         } catch (Exception e) {
+            log.debug("RPC health check failed for {}: {}", url, e.toString());
             return false;
         }
     }

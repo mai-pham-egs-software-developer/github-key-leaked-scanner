@@ -12,9 +12,9 @@ scanner:
   request-delay-ms: 150
   max-retries: 3
   scheduled:
-    enabled: false
+    enabled: true
     # top of every hour, 5 minutes in, scans the hour that just completed (UTC)
-    cron: "0 4 * * * *"
+    cron: "0 40 * * * *"
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
     chat-id: ${TELEGRAM_CHAT_ID:740969210}

@@ -29,7 +29,7 @@ public class ScheduledScanJob {
 
   @Scheduled(cron = "${scanner.scheduled.cron}")
   public void run() {
-    if (!props.getScheduled().isEnabled()) return;
+//    if (!props.getScheduled().isEnabled()) return;
 
     ZonedDateTime completedHour = ZonedDateTime.now(ZoneOffset.UTC).minusHours(1);
     String date = completedHour.format(DATE_FMT);

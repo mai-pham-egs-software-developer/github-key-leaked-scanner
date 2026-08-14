@@ -1,5 +1,6 @@
 package com.leakscanner.crypto.chain;
 
+import com.leakscanner.config.ScannerProperties;
 import com.leakscanner.crypto.Chain;
 import com.leakscanner.crypto.ChainEco;
 import com.leakscanner.crypto.dto.BalanceResultDto;
@@ -8,7 +9,8 @@ import org.bouncycastle.crypto.ec.CustomNamedCurves;
 import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.math.ec.ECPoint;
-import org.web3j.protocol.Web3j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.utils.Convert;
 
@@ -19,25 +21,29 @@ import java.nio.charset.StandardCharsets;
 
 public abstract class AbstractChainResolver implements IChain {
 
-    private final Web3ConnectionPool connectionPool;
+    private static final Logger log = LoggerFactory.getLogger(AbstractChainResolver.class);
 
-    protected AbstractChainResolver(Web3ConnectionPool connectionPool) {
+    private final Web3ConnectionPool connectionPool;
+    private final ScannerProperties props;
+
+    protected AbstractChainResolver(Web3ConnectionPool connectionPool, ScannerProperties props) {
         this.connectionPool = connectionPool;
+        this.props = props;
     }
 
     /**
-     * Web3j client for the given RPC network, backed by a health-checked endpoint from the
-     * pool. Takes an explicit {@link Chain} rather than deriving one from {@link #chain()},
-     * since {@code chain()} identifies an ecosystem (ETH, BTC) that may have no RPC network
-     * at all (BTC) or, in the future, more than one (e.g. a testnet).
+     * A fresh Web3j connection for the given RPC network, backed by a health-checked, rotated
+     * endpoint from the pool. Takes an explicit {@link Chain} rather than deriving one from
+     * {@link #chain()}, since {@code chain()} identifies an ecosystem (ETH, BTC) that may have
+     * no RPC network at all (BTC) or, in the future, more than one (e.g. a testnet).
      */
-    protected Web3j web3j(Chain rpcChain) {
+    protected Web3ConnectionPool.Connection web3j(Chain rpcChain) {
         return connectionPool.getConnection(rpcChain);
     }
 
-    /** Call after a request through {@link #web3j} fails, so the pool rotates to a different endpoint. */
-    protected void invalidateConnection(Chain rpcChain) {
-        connectionPool.invalidate(rpcChain);
+    /** Call after a request through {@link #web3j} fails, so its endpoint sits out a cooldown before it's picked again. */
+    protected void invalidateConnection(Web3ConnectionPool.Connection connection) {
+        connectionPool.invalidate(connection);
     }
 
     @Override
@@ -48,16 +54,7 @@ public abstract class AbstractChainResolver implements IChain {
     @Override
     public BalanceResultDto retrieve(String pk) {
         String address = resolveAddress(pk);
-
-        BigInteger balanceWei;
-        try {
-            balanceWei = web3j(this.chain()).ethGetBalance(address, DefaultBlockParameterName.LATEST)
-                    .send()
-                    .getBalance();
-        } catch (IOException e) {
-            invalidateConnection(this.chain());
-            throw new RuntimeException("Failed to fetch ETH balance for " + address, e);
-        }
+        BigInteger balanceWei = fetchBalance(address);
 
         BalanceResultDto result = new BalanceResultDto();
         result.setChain(this.chain().chain());
@@ -65,6 +62,36 @@ public abstract class AbstractChainResolver implements IChain {
         result.setPk(pk);
         result.setBalance(Convert.fromWei(new BigDecimal(balanceWei), Convert.Unit.ETHER));
         return result;
+    }
+
+    /**
+     * Fetches the balance, retrying on a freshly rotated RPC endpoint (via {@link #web3j})
+     * up to {@code scanner.max-retries} times, since a single flaky public node shouldn't sink
+     * the whole lookup when the pool has other candidates to rotate through.
+     */
+    private BigInteger fetchBalance(String address) {
+        Chain rpcChain = this.chain();
+        int maxAttempts = props.getMaxRetries() + 1;
+        IOException lastFailure = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            Web3ConnectionPool.Connection connection = web3j(rpcChain);
+            try {
+                return connection.web3j().ethGetBalance(address, DefaultBlockParameterName.LATEST)
+                        .send()
+                        .getBalance();
+            } catch (IOException e) {
+                lastFailure = e;
+                log.warn("RPC call failed for {} via {} (attempt {}/{}): {}",
+                        rpcChain, connection.url(), attempt, maxAttempts, e.getMessage());
+                invalidateConnection(connection);
+            } finally {
+                connection.web3j().shutdown();
+            }
+        }
+
+        throw new RuntimeException("Failed to fetch ETH balance for " + address
+                + " after " + maxAttempts + " attempts across different RPC endpoints", lastFailure);
     }
 
     /**
