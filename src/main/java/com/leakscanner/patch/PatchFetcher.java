@@ -31,7 +31,7 @@ public class PatchFetcher {
 
   public PatchFetcher(ScannerProperties props) {
     this.props = props;
-    this.pool = Executors.newFixedThreadPool(Math.max(1, props.getConcurrency()));
+    this.pool = Executors.newFixedThreadPool(Math.max(20, props.getConcurrency()));
   }
 
   private static String diffUrl(String repoName, String before, String head) {

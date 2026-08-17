@@ -34,6 +34,25 @@ class CryptoServiceTest {
   }
 
   @Test
+  void ignoresAdditionalEcosystemLockfiles() {
+    assertThat(CryptoService.isIgnoredFilePath("bun.lockb")).isTrue();
+    assertThat(CryptoService.isIgnoredFilePath("deno.lock")).isTrue();
+    assertThat(CryptoService.isIgnoredFilePath("Package.resolved")).isTrue();
+    assertThat(CryptoService.isIgnoredFilePath("Podfile.lock")).isTrue();
+    assertThat(CryptoService.isIgnoredFilePath("packages.lock.json")).isTrue();
+    assertThat(CryptoService.isIgnoredFilePath("project.assets.json")).isTrue();
+    assertThat(CryptoService.isIgnoredFilePath("flake.lock")).isTrue();
+    assertThat(CryptoService.isIgnoredFilePath(".terraform.lock.hcl")).isTrue();
+  }
+
+  @Test
+  void ignoresGeneratedBuildArtifactsByExtension() {
+    assertThat(CryptoService.isIgnoredFilePath("tsconfig.tsbuildinfo")).isTrue();
+    assertThat(CryptoService.isIgnoredFilePath("packages/api/tsconfig.tsbuildinfo")).isTrue();
+    assertThat(CryptoService.isIgnoredFilePath(".tsbuildinfo")).isTrue();
+  }
+
+  @Test
   void doesNotIgnoreRegularSourceFiles() {
     assertThat(CryptoService.isIgnoredFilePath("src/main/java/App.java")).isFalse();
     assertThat(CryptoService.isIgnoredFilePath(".env")).isFalse();

@@ -20,13 +20,15 @@ public class CryptoService {
     private static final Logger log = LoggerFactory.getLogger(CryptoService.class);
 
     /**
-     * Package-manager manifests/lockfiles are full of long hex-ish hashes (npm integrity
-     * hashes, go.sum checksums, Cargo/Poetry/uv lock hashes, ...) that match the private-key
-     * regex but are never actually secrets, so checking their balance only burns RPC calls.
+     * Package-manager manifests/lockfiles and other auto-generated build artifacts are full of
+     * long hex-ish hashes (npm integrity hashes, go.sum checksums, Cargo/Poetry/uv lock hashes,
+     * TypeScript incremental-build state, ...) that match the private-key regex but are never
+     * actually secrets, so checking their balance only burns RPC calls.
      */
     private static final Set<String> IGNORED_FILENAMES = Set.of(
             "package.json", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml",
-            "pom.xml", "build.gradle", "build.gradle.kts", "gradle.lockfile",
+            "bun.lockb", "bun.lock", "deno.lock",
+            "pom.xml", "build.gradle", "build.gradle.kts", "gradle.lockfile", "gradle-wrapper.properties",
             "requirements.txt", "Pipfile", "Pipfile.lock", "poetry.lock", "uv.lock",
             "Cargo.toml", "Cargo.lock",
             "go.mod", "go.sum",
@@ -34,7 +36,17 @@ public class CryptoService {
             "Gemfile", "Gemfile.lock",
             "mix.exs", "mix.lock",
             "pubspec.yaml", "pubspec.lock",
-            "paket.lock");
+            "paket.lock",
+            "Package.resolved", "Podfile.lock",
+            "packages.lock.json", "project.assets.json", "project.nuget.cache",
+            "stack.yaml.lock", "cabal.project.freeze",
+            "flake.lock", ".terraform.lock.hcl");
+
+    /**
+     * File extensions used by generated build/cache artifacts whose exact filename varies
+     * (e.g. TypeScript's tsbuildinfo is often prefixed, like {@code tsconfig.tsbuildinfo}).
+     */
+    private static final Set<String> IGNORED_SUFFIXES = Set.of(".tsbuildinfo");
 
     @Autowired
     private List<IChain> chains;
@@ -75,7 +87,15 @@ public class CryptoService {
         }
         int lastSlash = filePath.lastIndexOf('/');
         String filename = lastSlash >= 0 ? filePath.substring(lastSlash + 1) : filePath;
-        return IGNORED_FILENAMES.contains(filename);
+        if (IGNORED_FILENAMES.contains(filename)) {
+            return true;
+        }
+        for (String suffix : IGNORED_SUFFIXES) {
+            if (filename.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }
